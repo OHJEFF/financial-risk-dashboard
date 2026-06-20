@@ -55,7 +55,7 @@ The app will open automatically in your browser, or you can navigate to **http:/
 
 ## Live Demo
 
-🔗 [Live Demo](#) <!-- Replace with deployed Streamlit Community Cloud link -->
+🔗 [Live Demo](https://financial-risk-dashboard-bucqq6dw7fuqy4u8mdpnln.streamlit.app)
 
 ## Project Structure
 
