@@ -33,6 +33,35 @@ STRESS_SCENARIOS = {
     "2022 Bear Market": ("2022-01-01", "2022-10-12"),
 }
 
+PRESET_PORTFOLIOS = {
+    "Big Tech": "AAPL, MSFT, GOOGL, AMZN, META",
+    "Index Funds": "SPY, QQQ, VTI",
+    "Balanced": "SPY, AAPL, JPM, JNJ, XOM",
+}
+
+COMMON_TICKERS = {
+    "Apple": "AAPL",
+    "Microsoft": "MSFT",
+    "Alphabet (Google)": "GOOGL",
+    "Amazon": "AMZN",
+    "Meta (Facebook)": "META",
+    "Tesla": "TSLA",
+    "Nvidia": "NVDA",
+    "Netflix": "NFLX",
+    "Berkshire Hathaway": "BRK-B",
+    "JPMorgan Chase": "JPM",
+    "Johnson & Johnson": "JNJ",
+    "ExxonMobil": "XOM",
+    "Visa": "V",
+    "Walmart": "WMT",
+    "Procter & Gamble": "PG",
+    "Coca-Cola": "KO",
+    "Disney": "DIS",
+    "S&P 500 ETF": "SPY",
+    "Nasdaq 100 ETF": "QQQ",
+    "Total US Market ETF": "VTI",
+}
+
 
 @st.cache_data
 def get_prices(tickers, start, end):
@@ -49,8 +78,25 @@ def main():
 
     with st.sidebar:
         st.header("Portfolio Settings")
-        tickers_input = st.text_input("Tickers (comma separated)", value="AAPL, MSFT, SPY")
+
+        if "tickers_input" not in st.session_state:
+            st.session_state.tickers_input = "AAPL, MSFT, SPY"
+
+        st.caption("Quick presets:")
+        preset_cols = st.columns(len(PRESET_PORTFOLIOS))
+        for col, (label, preset_tickers) in zip(preset_cols, PRESET_PORTFOLIOS.items()):
+            if col.button(label, use_container_width=True):
+                st.session_state.tickers_input = preset_tickers
+
+        tickers_input = st.text_input("Tickers (comma separated)", key="tickers_input")
         tickers = [t.strip().upper() for t in tickers_input.split(",") if t.strip()]
+
+        with st.expander("Common tickers reference"):
+            reference_df = pd.DataFrame(
+                {"Ticker": list(COMMON_TICKERS.values())},
+                index=pd.Index(list(COMMON_TICKERS.keys()), name="Company"),
+            )
+            st.dataframe(reference_df, use_container_width=True)
 
         default_start = date.today() - timedelta(days=5 * 365)
         start_date = st.date_input("Start date", value=default_start)
@@ -90,18 +136,30 @@ def main():
     try:
         prices = get_prices(tickers, start_date, end_date)
     except Exception as exc:
-        st.error(f"Failed to load price data: {exc}")
+        st.error(
+            f"Failed to load price data: {exc}\n\n"
+            "Double-check that your ticker symbols are correct — see the 'Common tickers "
+            "reference' in the sidebar, or click one of the quick preset buttons above."
+        )
         return
 
     missing = [t for t in tickers if t not in prices.columns]
     if missing:
-        st.warning(f"No data found for: {', '.join(missing)}. They will be excluded.")
+        st.warning(
+            f"No data found for: {', '.join(missing)}. They will be excluded from the analysis. "
+            "Check the spelling against the 'Common tickers reference' in the sidebar, or try a "
+            "preset portfolio if you're not sure what to enter."
+        )
         prices = prices.drop(columns=missing, errors="ignore")
         tickers = [t for t in tickers if t in prices.columns]
         weights = [w for t, w in zip(tickers, weights)]
 
     if prices.empty or not tickers:
-        st.error("No valid price data available for the selected tickers/date range.")
+        st.error(
+            "No valid price data available for the selected tickers/date range. "
+            "Try one of the quick preset portfolios in the sidebar, or check the 'Common "
+            "tickers reference' for valid symbols."
+        )
         return
 
     returns = daily_returns(prices)
@@ -233,12 +291,19 @@ def main():
             try:
                 benchmark_prices = get_prices([benchmark_ticker], start_date, end_date)
             except Exception as exc:
-                st.error(f"Failed to load benchmark data: {exc}")
+                st.error(
+                    f"Failed to load benchmark data: {exc}\n\n"
+                    "Double-check the benchmark ticker symbol — see the 'Common tickers "
+                    "reference' in the sidebar (e.g. SPY, QQQ, VTI are common benchmarks)."
+                )
                 benchmark_prices = None
 
             if benchmark_prices is not None:
                 if benchmark_ticker not in benchmark_prices.columns:
-                    st.warning(f"No data found for benchmark '{benchmark_ticker}'.")
+                    st.warning(
+                        f"No data found for benchmark '{benchmark_ticker}'. Check the spelling, "
+                        "or try a common benchmark like SPY, QQQ, or VTI."
+                    )
                 else:
                     benchmark_returns = daily_returns(benchmark_prices)[benchmark_ticker]
                     aligned = pd.concat([port_returns, benchmark_returns], axis=1, join="inner")

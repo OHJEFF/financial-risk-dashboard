@@ -29,6 +29,7 @@ def load_prices(tickers, start, end):
         prices = data[["Close"]]
         prices.columns = tickers
 
+    prices = prices.dropna(axis=1, how="all")  # drop tickers with no data at all
     prices = prices.dropna(how="all").ffill().dropna()
 
     if prices.empty:
