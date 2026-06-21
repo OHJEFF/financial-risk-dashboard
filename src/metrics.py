@@ -137,3 +137,54 @@ def monte_carlo_simulation(returns, weights, n_simulations=1000, n_days=252, see
 
     columns = [f"sim_{i + 1}" for i in range(n_simulations)]
     return pd.DataFrame(paths, index=range(1, n_days + 1), columns=columns)
+
+
+def efficient_frontier(returns, n_portfolios=5000, rf=0.0, seed=42):
+    """Monte Carlo search over random long-only portfolio weights.
+
+    Returns (frontier_df, max_sharpe_portfolio, min_vol_portfolio):
+      - frontier_df: one row per simulated portfolio, with columns
+        "return", "volatility", "sharpe", and "weight_<ticker>" per asset.
+      - max_sharpe_portfolio / min_vol_portfolio: the best rows as Series.
+
+    With a single asset, every portfolio is the same point (weight=1.0).
+    """
+    clean_returns = returns.dropna()
+    tickers = list(clean_returns.columns)
+    n_assets = len(tickers)
+
+    if clean_returns.empty or n_assets == 0:
+        raise ValueError("No return history available to build an efficient frontier.")
+
+    mean_returns = clean_returns.mean().values * TRADING_DAYS
+    cov_matrix = clean_returns.cov().values * TRADING_DAYS
+
+    if n_assets == 1:
+        weights_matrix = np.ones((1, 1))
+    else:
+        rng = np.random.default_rng(seed)
+        weights_matrix = rng.dirichlet(np.ones(n_assets), size=n_portfolios)
+
+    portfolio_return_arr = weights_matrix @ mean_returns
+    portfolio_vol_arr = np.sqrt(np.einsum("ij,jk,ik->i", weights_matrix, cov_matrix, weights_matrix))
+    sharpe_arr = np.divide(
+        portfolio_return_arr - rf,
+        portfolio_vol_arr,
+        out=np.zeros_like(portfolio_return_arr),
+        where=portfolio_vol_arr != 0,
+    )
+
+    data = {
+        "return": portfolio_return_arr,
+        "volatility": portfolio_vol_arr,
+        "sharpe": sharpe_arr,
+    }
+    for i, ticker in enumerate(tickers):
+        data[f"weight_{ticker}"] = weights_matrix[:, i]
+
+    frontier_df = pd.DataFrame(data)
+
+    max_sharpe_portfolio = frontier_df.loc[frontier_df["sharpe"].idxmax()]
+    min_vol_portfolio = frontier_df.loc[frontier_df["volatility"].idxmin()]
+
+    return frontier_df, max_sharpe_portfolio, min_vol_portfolio

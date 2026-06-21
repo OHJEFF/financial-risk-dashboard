@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from src.data_loader import load_prices
+from src.factor_analysis import factor_regression, load_fama_french_factors
 from src.metrics import (
     alpha,
     annualised_volatility,
@@ -13,6 +14,7 @@ from src.metrics import (
     cumulative_returns,
     daily_returns,
     drawdown_series,
+    efficient_frontier,
     historical_var,
     max_drawdown,
     monte_carlo_simulation,
@@ -35,6 +37,11 @@ STRESS_SCENARIOS = {
 @st.cache_data
 def get_prices(tickers, start, end):
     return load_prices(tickers, start, end)
+
+
+@st.cache_data
+def get_factors(start, end):
+    return load_fama_french_factors(start, end)
 
 
 def main():
@@ -114,6 +121,8 @@ def main():
         tab_risk_contrib,
         tab_stress,
         tab_monte_carlo,
+        tab_frontier,
+        tab_factor,
     ) = st.tabs(
         [
             "Overview",
@@ -123,6 +132,8 @@ def main():
             "Risk Contribution",
             "Stress Test",
             "Monte Carlo",
+            "Efficient Frontier",
+            "Factor Analysis",
         ]
     )
 
@@ -359,6 +370,124 @@ def main():
             pcols[2].metric("95th Percentile", f"{p95:.2f}")
         except Exception as exc:
             st.error(f"Failed to run Monte Carlo simulation: {exc}")
+
+    with tab_frontier:
+        if len(tickers) < 2:
+            st.info(
+                "The efficient frontier needs at least two assets — with a single asset, every "
+                "portfolio is the same point, so there is no frontier to plot."
+            )
+        else:
+            try:
+                frontier_df, max_sharpe_portfolio, min_vol_portfolio = efficient_frontier(
+                    returns, n_portfolios=5000, rf=rf_rate
+                )
+
+                st.subheader("Simulated Portfolios")
+                fig_frontier = go.Figure()
+                fig_frontier.add_trace(
+                    go.Scatter(
+                        x=frontier_df["volatility"],
+                        y=frontier_df["return"],
+                        mode="markers",
+                        marker=dict(
+                            size=4,
+                            color=frontier_df["sharpe"],
+                            colorscale="Viridis",
+                            showscale=True,
+                            colorbar=dict(title="Sharpe", x=1.02, xpad=10),
+                        ),
+                        name="Simulated Portfolios",
+                        hoverinfo="skip",
+                    )
+                )
+                fig_frontier.add_trace(
+                    go.Scatter(
+                        x=[max_sharpe_portfolio["volatility"]],
+                        y=[max_sharpe_portfolio["return"]],
+                        mode="markers",
+                        marker=dict(size=18, color="gold", symbol="star", line=dict(width=1, color="black")),
+                        name="Max Sharpe",
+                    )
+                )
+                fig_frontier.add_trace(
+                    go.Scatter(
+                        x=[min_vol_portfolio["volatility"]],
+                        y=[min_vol_portfolio["return"]],
+                        mode="markers",
+                        marker=dict(size=16, color="cyan", symbol="star", line=dict(width=1, color="black")),
+                        name="Min Volatility",
+                    )
+                )
+                fig_frontier.add_trace(
+                    go.Scatter(
+                        x=[annual_vol],
+                        y=[annual_return],
+                        mode="markers",
+                        marker=dict(size=14, color="red", symbol="diamond", line=dict(width=1, color="black")),
+                        name="Your Portfolio",
+                    )
+                )
+                fig_frontier.update_layout(
+                    xaxis_title="Annualised Volatility",
+                    yaxis_title="Annualised Return",
+                    xaxis_tickformat=".0%",
+                    yaxis_tickformat=".0%",
+                    legend=dict(orientation="h", yanchor="bottom", y=-0.35, xanchor="center", x=0.5),
+                    margin=dict(b=110, r=80),
+                )
+                st.plotly_chart(fig_frontier, use_container_width=True)
+
+                st.subheader("Optimal Portfolios")
+                opt_cols = st.columns(2)
+                opt_labels = ["Max Sharpe Portfolio", "Min Volatility Portfolio"]
+                opt_portfolios = [max_sharpe_portfolio, min_vol_portfolio]
+                for col, label, portfolio in zip(opt_cols, opt_labels, opt_portfolios):
+                    with col:
+                        st.markdown(f"**{label}**")
+                        st.metric("Return", f"{portfolio['return']:.2%}")
+                        st.metric("Volatility", f"{portfolio['volatility']:.2%}")
+                        st.metric("Sharpe", f"{portfolio['sharpe']:.2f}")
+                        weight_df = pd.DataFrame(
+                            {"Weight": [portfolio[f"weight_{t}"] for t in tickers]}, index=tickers
+                        )
+                        st.dataframe(weight_df.style.format("{:.1%}"), use_container_width=True)
+            except Exception as exc:
+                st.error(f"Failed to compute the efficient frontier: {exc}")
+
+    with tab_factor:
+        try:
+            factors = get_factors(start_date, end_date)
+            result = factor_regression(port_returns, factors)
+
+            st.subheader("Fama-French Three-Factor Regression")
+            fcols = st.columns(5)
+            fcols[0].metric("Alpha (annualised)", f"{result['alpha']:.2%}")
+            fcols[1].metric("Market Beta", f"{result['beta_mkt']:.2f}")
+            fcols[2].metric("SMB Beta", f"{result['beta_smb']:.2f}")
+            fcols[3].metric("HML Beta", f"{result['beta_hml']:.2f}")
+            fcols[4].metric("R-squared", f"{result['r_squared']:.2f}")
+
+            st.subheader("Factor Exposures")
+            fig_factors = go.Figure(
+                go.Bar(
+                    x=["Market (Mkt-RF)", "SMB", "HML"],
+                    y=[result["beta_mkt"], result["beta_smb"], result["beta_hml"]],
+                )
+            )
+            fig_factors.update_layout(xaxis_title="Factor", yaxis_title="Beta (Loading)")
+            st.plotly_chart(fig_factors, use_container_width=True)
+
+            st.markdown(
+                "- **Market (Mkt-RF)**: sensitivity to overall stock market risk — a beta above 1 means the "
+                "portfolio amplifies market moves, below 1 means it's more defensive.\n"
+                "- **SMB (Small Minus Big)**: exposure to small-cap stocks versus large-cap stocks — a "
+                "positive loading means the portfolio behaves more like small-cap stocks.\n"
+                "- **HML (High Minus Low)**: exposure to value stocks versus growth stocks — a positive "
+                "loading means the portfolio tilts toward cheap/value stocks rather than growth stocks."
+            )
+        except Exception as exc:
+            st.error(f"Failed to run factor analysis: {exc}")
 
 
 if __name__ == "__main__":
