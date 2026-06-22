@@ -2,8 +2,7 @@
 
 An interactive portfolio risk analytics dashboard built with **Python** and **Streamlit** — pulls live market data via `yfinance` and computes standard risk/return metrics (returns, volatility, Sharpe ratio, Value at Risk, drawdown) for any user-defined multi-asset portfolio.
 
-![screenshot placeholder](docs/screenshot.png)
-<!-- Replace the path above with an actual screenshot of the running dashboard, e.g. docs/screenshot.png -->
+![Financial Risk Dashboard screenshot](docs/screenshot.png)
 
 ## Features
 

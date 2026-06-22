@@ -196,6 +196,7 @@ def main():
     )
 
     with tab_overview:
+        st.caption("A snapshot of overall portfolio performance and key risk metrics.")
         st.subheader("Portfolio KPIs")
         cols = st.columns(5)
         cols[0].metric("Annualised Return", f"{annual_return:.2%}")
@@ -215,6 +216,7 @@ def main():
         st.plotly_chart(fig_cum, use_container_width=True)
 
     with tab_risk:
+        st.caption("Drawdown history, cross-asset correlation, and a per-asset risk breakdown.")
         col_left, col_right = st.columns(2)
 
         with col_left:
@@ -264,6 +266,7 @@ def main():
         st.plotly_chart(fig_bar, use_container_width=True)
 
     with tab_rolling:
+        st.caption("How the portfolio's risk and risk-adjusted return have evolved over time.")
         rolling_window = st.slider("Rolling window (trading days)", min_value=21, max_value=252, value=63, step=1)
 
         if len(port_returns) <= rolling_window:
@@ -285,6 +288,7 @@ def main():
             st.plotly_chart(fig_roll_sharpe, use_container_width=True)
 
     with tab_benchmark:
+        st.caption("Portfolio performance versus a benchmark, with annualised Alpha and Beta.")
         if not benchmark_ticker:
             st.info("Enter a benchmark ticker in the sidebar to compare against.")
         else:
@@ -332,6 +336,7 @@ def main():
                         st.plotly_chart(fig_bench, use_container_width=True)
 
     with tab_risk_contrib:
+        st.caption("How much each asset contributes to total portfolio risk, versus its capital weight.")
         try:
             rc = risk_contribution(returns, weights)
             total_rc = rc.sum()
@@ -358,6 +363,7 @@ def main():
             st.error(f"Failed to compute risk contribution: {exc}")
 
     with tab_stress:
+        st.caption("How the portfolio would have performed during past extreme market scenarios.")
         try:
             stress_results = stress_test(returns, weights, STRESS_SCENARIOS)
             valid_results = {name: value for name, value in stress_results.items() if value is not None}
@@ -388,6 +394,7 @@ def main():
             st.error(f"Failed to run stress test: {exc}")
 
     with tab_monte_carlo:
+        st.caption("A distribution of possible future outcomes, based on thousands of simulated paths.")
         mc_cols = st.columns(2)
         n_simulations = mc_cols[0].slider("Number of simulations", min_value=100, max_value=2000, value=500, step=100)
         n_days = mc_cols[1].slider("Number of days", min_value=30, max_value=504, value=252, step=1)
@@ -437,6 +444,7 @@ def main():
             st.error(f"Failed to run Monte Carlo simulation: {exc}")
 
     with tab_frontier:
+        st.caption("Portfolio optimisation — the best possible risk/return combinations for these assets.")
         if len(tickers) < 2:
             st.info(
                 "The efficient frontier needs at least two assets — with a single asset, every "
@@ -521,6 +529,7 @@ def main():
                 st.error(f"Failed to compute the efficient frontier: {exc}")
 
     with tab_factor:
+        st.caption("Fama-French three-factor attribution: how much of the portfolio's return comes from Market, SMB, and HML exposure.")
         try:
             factors = get_factors(start_date, end_date)
             result = factor_regression(port_returns, factors)
