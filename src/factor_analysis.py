@@ -1,4 +1,6 @@
 import io
+import random
+import time
 import urllib.error
 import urllib.request
 import zipfile
@@ -13,18 +15,36 @@ FAMA_FRENCH_URL = (
     "F-F_Research_Data_Factors_daily_CSV.zip"
 )
 
+MAX_RETRIES = 3
+
 
 def load_fama_french_factors(start, end):
     """Download and parse the Fama-French 3-factor daily dataset.
 
+    Retries the download up to MAX_RETRIES times on failure, since cloud
+    deployments occasionally see transient errors on the first attempt.
     Returns a DataFrame indexed by date with columns [Mkt-RF, SMB, HML, RF],
     expressed as decimals, filtered to the [start, end] range.
     """
-    try:
-        with urllib.request.urlopen(FAMA_FRENCH_URL, timeout=30) as response:
-            zip_bytes = response.read()
-    except (urllib.error.URLError, TimeoutError, OSError) as exc:
-        raise RuntimeError(f"Could not download Fama-French factor data: {exc}") from exc
+    zip_bytes = None
+    last_error = None
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            with urllib.request.urlopen(FAMA_FRENCH_URL, timeout=30) as response:
+                zip_bytes = response.read()
+            if zip_bytes:
+                break
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            last_error = exc
+            zip_bytes = None
+
+        if attempt < MAX_RETRIES:
+            time.sleep(random.uniform(1.0, 2.0))
+
+    if not zip_bytes:
+        raise RuntimeError(
+            f"Could not download Fama-French factor data after {MAX_RETRIES} attempts: {last_error}"
+        )
 
     try:
         with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
