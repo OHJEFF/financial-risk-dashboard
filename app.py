@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date
 
 import numpy as np
 import pandas as pd
@@ -98,7 +98,7 @@ def main():
             )
             st.dataframe(reference_df, use_container_width=True)
 
-        default_start = date.today() - timedelta(days=5 * 365)
+        default_start = date(2019, 1, 1)
         start_date = st.date_input("Start date", value=default_start)
         end_date = st.date_input("End date", value=date.today())
 
@@ -377,8 +377,13 @@ def main():
                 values = list(valid_results.values())
                 colors = ["crimson" if v < 0 else "seagreen" for v in values]
 
-                fig_stress = go.Figure(go.Bar(x=names, y=values, marker_color=colors))
-                fig_stress.update_layout(yaxis_tickformat=".1%", xaxis_title="Scenario", yaxis_title="Portfolio Return")
+                fig_stress = go.Figure(go.Bar(x=names, y=values, marker_color=colors, width=0.45))
+                fig_stress.update_layout(
+                    yaxis_tickformat=".1%",
+                    xaxis_title="Scenario",
+                    yaxis_title="Portfolio Return",
+                    height=320 if len(names) == 1 else 420,
+                )
                 st.plotly_chart(fig_stress, use_container_width=True)
 
                 for name in names:
