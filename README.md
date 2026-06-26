@@ -2,31 +2,17 @@
 
 An interactive portfolio risk analytics dashboard built with **Python** and **Streamlit** — pulls live market data via `yfinance` and computes standard risk/return metrics (returns, volatility, Sharpe ratio, Value at Risk, drawdown) for any user-defined multi-asset portfolio.
 
-## Dashboard Screenshots
+## Dashboard Preview
 
-### Overview
+<p align="center">
+  <img src="docs/overview.png" width="45%">
+  <img src="docs/risk.png" width="45%">
+</p>
 
-The overview page shows the selected portfolio, key performance and risk KPIs, and cumulative returns over time.
-
-![Dashboard Overview](overview.png)
-
-### Risk Metrics
-
-The risk page shows portfolio drawdown, cross-asset correlation, and per-asset risk metrics to evaluate downside risk and diversification.
-
-![Risk Metrics](risk.png)
-
-### Monte Carlo Simulation
-
-The Monte Carlo module simulates possible future portfolio value paths and shows the distribution of simulated final outcomes.
-
-![Monte Carlo Simulation](montecarlo.png)
-
-### Efficient Frontier
-
-The efficient frontier module compares simulated portfolios by annualised return and volatility, highlighting the maximum Sharpe and minimum volatility portfolios.
-
-![Efficient Frontier](efficient frontier.png)
+<p align="center">
+  <img src="docs/montecarlo.png" width="45%">
+  <img src="docs/efficient_frontier.png" width="45%">
+</p>
 
 ## Features
 
