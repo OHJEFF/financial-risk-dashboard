@@ -26,7 +26,7 @@ The Monte Carlo module simulates possible future portfolio value paths and shows
 
 The efficient frontier module compares simulated portfolios by annualised return and volatility, highlighting the maximum Sharpe and minimum volatility portfolios.
 
-![Efficient Frontier](efficient_frontier.png)
+![Efficient Frontier](efficient frontier.png)
 
 ## Features
 
