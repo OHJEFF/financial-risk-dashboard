@@ -4,11 +4,15 @@ An interactive portfolio risk analytics dashboard built with **Python** and **St
 
 ## Dashboard Preview
 
-![Dashboard Overview](docs/overview.png)
-![Risk Metrics](docs/risk.png)
-![Monte Carlo Simulation](docs/montecarlo.png)
-![Efficient Frontier](docs/efficient_frontier.png)
+<p align="center">
+  <img src="docs/overview.png" width="45%">
+  <img src="docs/risk.png" width="45%">
+</p>
 
+<p align="center">
+  <img src="docs/montecarlo.png" width="45%">
+  <img src="docs/efficient_frontier.png" width="45%">
+</p>
 ## Features
 
 **Core risk analytics**
