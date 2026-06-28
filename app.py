@@ -7,6 +7,7 @@ import streamlit as st
 
 from src.data_loader import load_prices
 from src.factor_analysis import factor_regression, load_fama_french_factors
+from src.optimization import optimize_max_sharpe, optimize_min_volatility
 from src.metrics import (
     alpha,
     annualised_volatility,
@@ -180,6 +181,7 @@ def main():
         tab_stress,
         tab_monte_carlo,
         tab_frontier,
+        tab_optimization,
         tab_factor,
     ) = st.tabs(
         [
@@ -191,6 +193,7 @@ def main():
             "Stress Test",
             "Monte Carlo",
             "Efficient Frontier",
+            "Optimization",
             "Factor Analysis",
         ]
     )
@@ -532,6 +535,90 @@ def main():
                         st.dataframe(weight_df.style.format("{:.1%}"), use_container_width=True)
             except Exception as exc:
                 st.error(f"Failed to compute the efficient frontier: {exc}")
+
+    with tab_optimization:
+        st.caption("Find the optimal allocation that maximizes the Sharpe ratio or minimizes volatility for these assets.")
+
+        obj = st.radio(
+            "Optimization objective",
+            ["Max Sharpe Ratio", "Min Volatility"],
+            horizontal=True,
+        )
+
+        if len(tickers) == 1:
+            st.info(
+                f"Single-asset portfolio: the only possible allocation is 100% in {tickers[0]}. "
+                "Metrics below reflect that allocation."
+            )
+
+        try:
+            if obj == "Max Sharpe Ratio":
+                opt_weights, opt_ret, opt_vol, opt_sharpe = optimize_max_sharpe(returns, rf=rf_rate)
+            else:
+                opt_weights, opt_ret, opt_vol, opt_sharpe = optimize_min_volatility(returns, rf=rf_rate)
+
+            weights_arr = np.array(weights, dtype=float)
+            current_weights = weights_arr / weights_arr.sum()
+
+            st.subheader("Current Portfolio")
+            cur_cols = st.columns(3)
+            cur_cols[0].metric("Annualised Return", f"{annual_return:.2%}")
+            cur_cols[1].metric("Annualised Volatility", f"{annual_vol:.2%}")
+            cur_cols[2].metric("Sharpe Ratio", f"{sharpe:.2f}")
+
+            st.subheader("Optimized Portfolio")
+            opt_cols = st.columns(3)
+            opt_cols[0].metric(
+                "Annualised Return",
+                f"{opt_ret:.2%}",
+                delta=f"{opt_ret - annual_return:+.2%}",
+            )
+            opt_cols[1].metric(
+                "Annualised Volatility",
+                f"{opt_vol:.2%}",
+                delta=f"{opt_vol - annual_vol:+.2%}",
+                delta_color="inverse",
+            )
+            opt_cols[2].metric(
+                "Sharpe Ratio",
+                f"{opt_sharpe:.2f}",
+                delta=f"{opt_sharpe - sharpe:+.2f}",
+            )
+
+            st.subheader("Weight Comparison")
+            weight_df = pd.DataFrame(
+                {
+                    "Current Weight": current_weights,
+                    "Optimized Weight": opt_weights,
+                    "Change": opt_weights - current_weights,
+                },
+                index=tickers,
+            )
+            st.dataframe(
+                weight_df.style.format(
+                    {"Current Weight": "{:.1%}", "Optimized Weight": "{:.1%}", "Change": "{:+.1%}"}
+                ),
+                use_container_width=True,
+            )
+
+            st.subheader("Rebalancing Suggestions")
+            threshold = 0.01
+            for ticker, curr_w, opt_w in zip(tickers, current_weights, opt_weights):
+                diff = opt_w - curr_w
+                if diff > threshold:
+                    st.markdown(f"- **{ticker}**: Increase from {curr_w:.1%} → {opt_w:.1%} ({diff:+.1%})")
+                elif diff < -threshold:
+                    st.markdown(f"- **{ticker}**: Reduce from {curr_w:.1%} → {opt_w:.1%} ({diff:+.1%})")
+                else:
+                    st.markdown(f"- **{ticker}**: Maintain current allocation (~{opt_w:.1%})")
+
+            st.caption(
+                "_For educational purposes only, not financial advice. "
+                "Past data does not guarantee future results._"
+            )
+
+        except Exception as exc:
+            st.error(f"Optimization failed: {exc}")
 
     with tab_factor:
         st.caption("Fama-French three-factor attribution: how much of the portfolio's return comes from Market, SMB, and HML exposure.")
